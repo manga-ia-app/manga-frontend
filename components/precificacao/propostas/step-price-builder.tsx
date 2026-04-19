@@ -236,7 +236,7 @@ export function StepPriceBuilder({ proposal, onChange }: StepPriceBuilderProps) 
 
     // Remove from source
     let newAvailable = [...availablePhases];
-    let newSections = sections.map((s) => ({ ...s, phases: [...s.phases] }));
+    const newSections = sections.map((s) => ({ ...s, phases: [...s.phases] }));
 
     if (sourceContainer === "available") {
       newAvailable = newAvailable.filter((p) => p.id !== activePhaseId);
