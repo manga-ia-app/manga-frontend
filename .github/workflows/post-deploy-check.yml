@@ -1,0 +1,82 @@
+name: Post-deploy check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: post-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Phase 1: log-only. Flip to "true" in Phase 2 after validating smoke assertions.
+  ROLLBACK_ENABLED: "false"
+  FRONTEND_URL: "https://manga-frontend-smoky.vercel.app"
+
+jobs:
+  smoke-and-rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for Vercel deploy to become reachable
+        run: |
+          max_wait=180
+          interval=10
+          elapsed=0
+          until curl -fsS --max-time 10 "${FRONTEND_URL}/" > /dev/null; do
+            if [ $elapsed -ge $max_wait ]; then
+              echo "::error::Vercel deploy not reachable after ${max_wait}s"
+              exit 1
+            fi
+            sleep $interval
+            elapsed=$((elapsed + interval))
+            echo "waiting... ${elapsed}s"
+          done
+          echo "deploy reachable after ${elapsed}s"
+
+      - name: Smoke — / returns 200 and contains Next.js marker
+        run: |
+          body=$(curl -fsS --max-time 20 "${FRONTEND_URL}/")
+          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${FRONTEND_URL}/")
+          if [ "$status" != "200" ]; then
+            echo "::error::/ returned $status"
+            exit 1
+          fi
+          # Next.js always emits an __NEXT_DATA__ script tag in SSR responses. Stable marker.
+          if ! echo "$body" | grep -q '__NEXT_DATA__'; then
+            echo "::error::root HTML missing __NEXT_DATA__ marker — Next.js render likely broken"
+            exit 1
+          fi
+
+      - name: Setup Node (for Vercel CLI)
+        if: failure() && env.ROLLBACK_ENABLED == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Vercel CLI
+        if: failure() && env.ROLLBACK_ENABLED == 'true'
+        run: npm i -g vercel@latest
+
+      - name: Rollback on failure
+        if: failure() && env.ROLLBACK_ENABLED == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -e
+          # List production deployments for this project and pick the previous one.
+          # Output format varies across CLI versions — verify before enabling.
+          prev_url=$(vercel ls "$VERCEL_PROJECT_ID" --prod \
+            --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" \
+            | awk '/https:\/\// && NR>1 {print $1}' | sed -n '2p')
+          if [ -z "$prev_url" ]; then
+            echo "::error::No previous production deployment found"
+            exit 1
+          fi
+          vercel rollback "$prev_url" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes
+          echo "rollback triggered: $prev_url"
