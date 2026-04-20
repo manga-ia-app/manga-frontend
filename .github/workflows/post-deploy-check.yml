@@ -10,8 +10,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Phase 1: log-only. Flip to "true" in Phase 2 after validating smoke assertions.
-  ROLLBACK_ENABLED: "false"
+  # Phase 2 (armed): smoke failures trigger provider rollback via Vercel CLI.
+  ROLLBACK_ENABLED: "true"
   FRONTEND_URL: "https://manga-frontend-smoky.vercel.app"
 
 jobs:
