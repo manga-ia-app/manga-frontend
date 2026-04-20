@@ -111,12 +111,10 @@ jobs:
 
           git revert HEAD --no-edit --mainline 1 2>/dev/null || git revert HEAD --no-edit
 
-          git commit --amend -m "revert(auto-rollback): smoke failed on ${ORIG_SHA}
-
-Original: ${ORIG_SUBJECT}
-
-Auto-reverted by post-deploy smoke test.
-Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          git commit --amend \
+            -m "revert(auto-rollback): smoke failed on ${ORIG_SHA}" \
+            -m "Original: ${ORIG_SUBJECT}" \
+            -m "Auto-reverted by post-deploy smoke test. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           git push origin HEAD:main
           echo "rolled back ${ORIG_SHA} — Vercel will redeploy the reverted code"
