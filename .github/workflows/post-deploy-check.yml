@@ -76,10 +76,8 @@ jobs:
             exit 1
           fi
           body=$(curl -fsS --max-time 15 "${FRONTEND_URL}/login")
-          # VALIDATION-ONLY: assertion intentionally broken to force rollback.
-          # Real app unaffected. Revert this PR after the revert flow is validated.
-          if ! echo "$body" | grep -q '<title>RollbackRetriggerValidation-DoNotShip</title>'; then
-            echo "::error::/login HTML missing intentional validation marker — rollback should now fire AND re-trigger"
+          if ! echo "$body" | grep -q '<title>Manga</title>'; then
+            echo "::error::/login HTML missing <title>Manga</title> — layout render likely broken"
             exit 1
           fi
 
@@ -99,9 +97,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          # Read HEAD message via git, not ${{ github.event.head_commit.message }},
-          # because that field is empty on workflow_dispatch events — and
-          # workflow_dispatch is how this step re-triggers itself after a revert.
+          # Read HEAD message via git (works for both push and workflow_dispatch
+          # events). Using the github.event.head_commit.message context value
+          # here would fail under workflow_dispatch (empty) AND would also
+          # inject multi-line text into this script at interpolation time.
           HEAD_MSG=$(git log -1 --format=%s HEAD)
 
           if [[ "$HEAD_MSG" == revert\(auto-rollback\):* ]]; then
