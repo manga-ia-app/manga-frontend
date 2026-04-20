@@ -23,10 +23,12 @@ jobs:
 
       - name: Wait for Vercel deploy to become reachable
         run: |
+          # Hitting /login directly: / redirects to /login (307) for unauthenticated
+          # users (middleware auth gate), so we use /login as the public canary.
           max_wait=180
           interval=10
           elapsed=0
-          until curl -fsS --max-time 10 "${FRONTEND_URL}/" > /dev/null; do
+          until curl -fsS --max-time 10 "${FRONTEND_URL}/login" > /dev/null; do
             if [ $elapsed -ge $max_wait ]; then
               echo "::error::Vercel deploy not reachable after ${max_wait}s"
               exit 1
@@ -37,19 +39,28 @@ jobs:
           done
           echo "deploy reachable after ${elapsed}s"
 
-      - name: Smoke — / returns 200 and contains Next.js marker
+      - name: Smoke — /login returns 200 and renders Manga title
         run: |
-          body=$(curl -fsS --max-time 20 "${FRONTEND_URL}/")
-          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${FRONTEND_URL}/")
+          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${FRONTEND_URL}/login")
           if [ "$status" != "200" ]; then
-            echo "::error::/ returned $status"
+            echo "::error::/login returned $status"
             exit 1
           fi
-          # Next.js always emits an __NEXT_DATA__ script tag in SSR responses. Stable marker.
-          if ! echo "$body" | grep -q '__NEXT_DATA__'; then
-            echo "::error::root HTML missing __NEXT_DATA__ marker — Next.js render likely broken"
+          body=$(curl -fsS --max-time 20 "${FRONTEND_URL}/login")
+          if ! echo "$body" | grep -q '<title>Manga</title>'; then
+            echo "::error::/login HTML missing <title>Manga</title> — layout render likely broken"
             exit 1
           fi
+
+      - name: Smoke — / redirects unauthenticated users to /login
+        run: |
+          # Proves the middleware auth gate is alive. If / ever returns 200
+          # for an anonymous request, the middleware broke (real prod issue).
+          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${FRONTEND_URL}/")
+          case "$status" in
+            301|302|307|308) echo "redirect OK ($status)" ;;
+            *) echo "::error::/ returned $status (expected 3xx redirect — middleware may be broken)"; exit 1 ;;
+          esac
 
       - name: Setup Node (for Vercel CLI)
         if: failure() && env.ROLLBACK_ENABLED == 'true'
