@@ -11,6 +11,7 @@ concurrency:
 
 permissions:
   contents: write  # required so auto-rollback can push a revert commit
+  actions: write   # required so auto-rollback can re-trigger this workflow via workflow_dispatch
 
 env:
   # Phase 2 (armed): smoke failures trigger a git-revert-based rollback.
@@ -92,13 +93,17 @@ jobs:
             *) echo "::error::/ returned $status (expected 3xx redirect — middleware may be broken)"; exit 1 ;;
           esac
 
-      - name: Auto-rollback on failure (git revert + push)
+      - name: Auto-rollback on failure (git revert + push + re-trigger)
         if: failure() && env.ROLLBACK_ENABLED == 'true'
         env:
-          HEAD_MSG: ${{ github.event.head_commit.message }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
+          # Read HEAD message via git, not ${{ github.event.head_commit.message }},
+          # because that field is empty on workflow_dispatch events — and
+          # workflow_dispatch is how this step re-triggers itself after a revert.
+          HEAD_MSG=$(git log -1 --format=%s HEAD)
+
           if [[ "$HEAD_MSG" == revert\(auto-rollback\):* ]]; then
             echo "::error::Auto-rollback already applied and smoke is still failing."
             echo "::error::Manual intervention required — revert of revert won't fix this."
@@ -120,3 +125,10 @@ jobs:
 
           git push origin HEAD:main
           echo "rolled back ${ORIG_SHA} — Vercel will redeploy the reverted code"
+
+          # GITHUB_TOKEN pushes do NOT trigger downstream workflows (GitHub
+          # security feature against infinite loops). workflow_dispatch is
+          # the documented exception. Re-trigger post-deploy-check manually
+          # so the revert commit also gets smoke-verified.
+          gh workflow run post-deploy-check.yml --ref main --repo "${{ github.repository }}"
+          echo "triggered post-deploy-check workflow_dispatch on revert commit"
