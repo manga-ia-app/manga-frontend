@@ -165,6 +165,25 @@ export async function confirmEmail(token: string): Promise<void> {
   await authClient.post("/auth/confirm-email", { token });
 }
 
+export interface CheckPasswordPwnedResponse {
+  pwned: boolean;
+}
+
+/**
+ * Verifica se a senha apareceu em vazamentos via HIBP k-anonymity.
+ * O backend envia apenas os 5 primeiros chars do SHA-1 para o HIBP —
+ * a senha real não sai do servidor.
+ */
+export async function checkPasswordPwned(
+  password: string
+): Promise<CheckPasswordPwnedResponse> {
+  const response = await authClient.post<CheckPasswordPwnedResponse>(
+    "/auth/check-password-pwned",
+    { password }
+  );
+  return response.data;
+}
+
 export function logout(): void {
   removeCookie(TOKEN_COOKIE);
   removeCookie(REFRESH_TOKEN_COOKIE);

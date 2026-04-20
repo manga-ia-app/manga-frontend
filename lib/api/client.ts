@@ -48,7 +48,11 @@ apiClient.interceptors.response.use(
       logger.error(`http:401 — refresh falhou para ${url}, redirecionando para login`);
       removeCookie(TOKEN_COOKIE);
       removeCookie(REFRESH_TOKEN_COOKIE);
-      window.location.href = "/login";
+      // Preserve the originating path so we can send the user back after re-auth,
+      // and signal the reason so the login page shows a non-alarming banner.
+      const callbackUrl = window.location.pathname + window.location.search;
+      const params = new URLSearchParams({ reason: "session_expired", callbackUrl });
+      window.location.href = `/login?${params.toString()}`;
     }
 
     return Promise.reject(error);

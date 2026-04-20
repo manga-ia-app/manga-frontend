@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, LogIn } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,24 +20,62 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { extractApiError } from "@/lib/api/error";
+import { passwordSchema } from "@/lib/validators/password";
+
+const REASON_BANNERS: Record<string, string> = {
+  session_expired: "Sua sessão expirou. Faça login novamente.",
+  password_reset: "Senha alterada. Faça login com a nova senha.",
+  email_confirmed: "E-mail confirmado com sucesso. Faça login.",
+};
 
 const loginSchema = z.object({
   email: z
     .string()
     .min(1, "E-mail é obrigatório")
     .email("E-mail inválido"),
-  password: z
-    .string()
-    .min(1, "Senha é obrigatória")
-    .min(6, "Senha deve ter pelo menos 6 caracteres"),
+  password: passwordSchema,
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
+// useSearchParams requires a Suspense boundary for Next.js static
+// pre-rendering; wrap LoginForm so the page exports a stable shell.
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginSkeleton />}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginSkeleton() {
+  return (
+    <Card>
+      <CardHeader className="space-y-1 text-center">
+        <div className="flex justify-center mb-2">
+          <span className="text-2xl font-bold tracking-tight text-primary">
+            Manga
+          </span>
+        </div>
+        <CardTitle className="text-2xl">Entrar no Manga</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const reason = searchParams.get("reason");
+  const banner = reason ? REASON_BANNERS[reason] : null;
 
   const {
     register,
@@ -55,13 +93,10 @@ export default function LoginPage() {
     try {
       setError(null);
       await login(data.email, data.password);
-      router.push("/dashboard");
+      const callbackUrl = searchParams.get("callbackUrl");
+      router.push(callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/dashboard");
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Ocorreu um erro ao fazer login. Tente novamente.");
-      }
+      setError(extractApiError(err, "Ocorreu um erro ao fazer login. Tente novamente."));
     }
   }
 
@@ -80,6 +115,11 @@ export default function LoginPage() {
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
+          {banner && !error && (
+            <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+              {banner}
+            </div>
+          )}
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               {error}
