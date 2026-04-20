@@ -7,7 +7,7 @@ import { ArrowLeft, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
-import { ServicoForm, type ServicoFormData } from "../servico-form";
+import { ServicoForm, type ServicoSubmitPayload } from "../servico-form";
 import {
   getServicoById,
   updateServico,
@@ -31,7 +31,7 @@ export default function ServicoDetailPage({
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: ServicoFormData) => updateServico(id, data),
+    mutationFn: (data: ServicoSubmitPayload) => updateServico(id, data),
     onSuccess: () => {
       showToast("success", { title: "Servico atualizado com sucesso!" });
       queryClient.invalidateQueries({ queryKey: ["servicos"] });

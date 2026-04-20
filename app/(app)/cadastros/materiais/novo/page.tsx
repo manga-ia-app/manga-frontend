@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
-import { MaterialForm, type MaterialFormData } from "../material-form";
+import { MaterialForm, type MaterialSubmitPayload } from "../material-form";
 import { createMaterial } from "@/lib/api/cadastros";
 import { showToast } from "@/lib/utils/toast";
 
@@ -15,7 +15,7 @@ export default function NovoMaterialPage() {
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
-    mutationFn: (data: MaterialFormData) => createMaterial(data),
+    mutationFn: (data: MaterialSubmitPayload) => createMaterial(data),
     onSuccess: () => {
       showToast("success", { title: "Material cadastrado com sucesso!" });
       queryClient.invalidateQueries({ queryKey: ["materiais"] });

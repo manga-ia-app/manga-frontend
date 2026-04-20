@@ -46,9 +46,14 @@ const materialSchema = z.object({
 
 export type MaterialFormData = z.infer<typeof materialSchema>;
 
+/** Payload emitted by the form after mask→number conversion on defaultPrice. */
+export type MaterialSubmitPayload = Omit<MaterialFormData, "defaultPrice"> & {
+  defaultPrice: number;
+};
+
 interface MaterialFormProps {
   defaultValues?: Partial<Material>;
-  onSubmit: (data: MaterialFormData) => void;
+  onSubmit: (data: MaterialSubmitPayload) => void;
   isSubmitting?: boolean;
 }
 
@@ -89,10 +94,11 @@ export function MaterialForm({
   const fornecedores = fornecedoresData?.items || [];
 
   function handleFormSubmit(data: MaterialFormData) {
-    onSubmit({
+    const payload: MaterialSubmitPayload = {
       ...data,
       defaultPrice: data.defaultPrice ? unmaskCurrency(data.defaultPrice) : 0,
-    } as any);
+    };
+    onSubmit(payload);
   }
 
   return (

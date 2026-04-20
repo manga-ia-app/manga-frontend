@@ -18,6 +18,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CargoStatsBadge } from "./cargo-stats-badge";
 import { createCargo, updateCargo, getCargoById } from "@/lib/api/cargos";
+import { extractApiError } from "@/lib/api/error";
 import { getGruposColaboradores } from "@/lib/api/overhead";
 import type { Cargo } from "@/lib/types/cargos";
 
@@ -84,8 +85,8 @@ export function CargoDialog({ open, onOpenChange, cargo }: CargoDialogProps) {
       queryClient.invalidateQueries({ queryKey: ["cargos"] });
       onOpenChange(false);
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || "Erro ao criar cargo.");
+    onError: (err) => {
+      toast.error(extractApiError(err, "Erro ao criar cargo."));
     },
   });
 
@@ -107,8 +108,8 @@ export function CargoDialog({ open, onOpenChange, cargo }: CargoDialogProps) {
       queryClient.invalidateQueries({ queryKey: ["cargo", cargo?.id] });
       onOpenChange(false);
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || "Erro ao atualizar cargo.");
+    onError: (err) => {
+      toast.error(extractApiError(err, "Erro ao atualizar cargo."));
     },
   });
 

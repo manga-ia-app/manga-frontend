@@ -17,6 +17,7 @@ import {
   deleteGrupoColaborador,
 } from "@/lib/api/overhead";
 import { getCargos, deleteCargo } from "@/lib/api/cargos";
+import { extractApiError } from "@/lib/api/error";
 import type { GrupoColaboradorDto } from "@/lib/types/overhead";
 import type { Cargo } from "@/lib/types/cargos";
 
@@ -84,8 +85,8 @@ export default function GruposCargosPage() {
       setReassignOpen(false);
       setGrupoToDelete(null);
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || "Erro ao excluir grupo.");
+    onError: (err) => {
+      toast.error(extractApiError(err, "Erro ao excluir grupo."));
     },
   });
 
@@ -96,8 +97,8 @@ export default function GruposCargosPage() {
       queryClient.invalidateQueries({ queryKey: ["cargos"] });
       queryClient.invalidateQueries({ queryKey: ["grupos-colaboradores"] });
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || "Erro ao excluir cargo.");
+    onError: (err) => {
+      toast.error(extractApiError(err, "Erro ao excluir cargo."));
     },
   });
 
