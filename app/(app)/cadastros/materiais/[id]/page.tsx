@@ -7,7 +7,7 @@ import { ArrowLeft, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
-import { MaterialForm, type MaterialFormData } from "../material-form";
+import { MaterialForm, type MaterialSubmitPayload } from "../material-form";
 import {
   getMaterialById,
   updateMaterial,
@@ -31,7 +31,7 @@ export default function MaterialDetailPage({
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: MaterialFormData) => updateMaterial(id, data),
+    mutationFn: (data: MaterialSubmitPayload) => updateMaterial(id, data),
     onSuccess: () => {
       showToast("success", { title: "Material atualizado com sucesso!" });
       queryClient.invalidateQueries({ queryKey: ["materiais"] });

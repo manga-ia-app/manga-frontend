@@ -9,3 +9,4 @@ npm-debug.log*
 /playwright-report/
 /blob-report/
 /e2e/.auth/
+.vercel

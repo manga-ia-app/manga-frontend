@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { CargoDialog } from "@/components/cadastros/cargo-dialog";
 import { getCargos, deleteCargo } from "@/lib/api/cargos";
+import { extractApiError } from "@/lib/api/error";
 import { getGruposColaboradores } from "@/lib/api/overhead";
 import type { Cargo } from "@/lib/types/cargos";
 
@@ -73,8 +74,8 @@ export default function CargosPage() {
       toast.success("Cargo excluído.");
       queryClient.invalidateQueries({ queryKey: ["cargos"] });
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || "Erro ao excluir cargo.");
+    onError: (err) => {
+      toast.error(extractApiError(err, "Erro ao excluir cargo."));
     },
   });
 

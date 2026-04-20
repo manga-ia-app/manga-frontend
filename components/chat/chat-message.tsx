@@ -1,23 +1,25 @@
 "use client";
 
-import { memo } from "react";
+import { memo, type ComponentPropsWithoutRef } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { ChatMessage } from "@/lib/types/chat";
 import { NavigationChips } from "./navigation-chips";
 import { ChatToolIndicator } from "./chat-tool-indicator";
 
+type MdProps<T extends keyof React.JSX.IntrinsicElements> = ComponentPropsWithoutRef<T>;
+
 const markdownComponents = {
-  p: (props: any) => <p className="mb-1.5 last:mb-0 leading-relaxed">{props.children}</p>,
-  ul: (props: any) => <ul className="list-disc pl-4 mb-1.5 space-y-0.5">{props.children}</ul>,
-  ol: (props: any) => <ol className="list-decimal pl-4 mb-1.5 space-y-0.5">{props.children}</ol>,
-  li: (props: any) => <li className="leading-snug">{props.children}</li>,
-  strong: (props: any) => <strong className="font-semibold">{props.children}</strong>,
-  code: (props: any) => (
+  p: (props: MdProps<"p">) => <p className="mb-1.5 last:mb-0 leading-relaxed">{props.children}</p>,
+  ul: (props: MdProps<"ul">) => <ul className="list-disc pl-4 mb-1.5 space-y-0.5">{props.children}</ul>,
+  ol: (props: MdProps<"ol">) => <ol className="list-decimal pl-4 mb-1.5 space-y-0.5">{props.children}</ol>,
+  li: (props: MdProps<"li">) => <li className="leading-snug">{props.children}</li>,
+  strong: (props: MdProps<"strong">) => <strong className="font-semibold">{props.children}</strong>,
+  code: (props: MdProps<"code">) => (
     <code className="bg-background/50 px-1 py-0.5 rounded text-xs font-mono">{props.children}</code>
   ),
-  h3: (props: any) => <h3 className="font-semibold text-sm mt-3 mb-1">{props.children}</h3>,
-  h4: (props: any) => <h4 className="font-medium text-sm mt-2 mb-0.5">{props.children}</h4>,
+  h3: (props: MdProps<"h3">) => <h3 className="font-semibold text-sm mt-3 mb-1">{props.children}</h3>,
+  h4: (props: MdProps<"h4">) => <h4 className="font-medium text-sm mt-2 mb-0.5">{props.children}</h4>,
   hr: () => <hr className="my-2 border-border/50" />,
 };
 
