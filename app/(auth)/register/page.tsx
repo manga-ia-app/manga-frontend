@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,7 +18,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { registerUser } from "@/lib/api/auth";
+import { checkPasswordPwned, registerUser } from "@/lib/api/auth";
+import {
+  PASSWORD_MIN_LENGTH,
+  passwordSchema,
+} from "@/lib/validators/password";
 
 const registerSchema = z
   .object({
@@ -34,19 +38,15 @@ const registerSchema = z
       .string()
       .min(1, "E-mail é obrigatório")
       .email("E-mail inválido"),
-    password: z
-      .string()
-      .min(1, "Senha é obrigatória")
-      .min(8, "Senha deve ter pelo menos 8 caracteres")
-      .regex(/[A-Z]/, "Senha deve conter pelo menos uma letra maiúscula")
-      .regex(/[a-z]/, "Senha deve conter pelo menos uma letra minúscula")
-      .regex(/[0-9]/, "Senha deve conter pelo menos um número"),
+    password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirmação de senha é obrigatória"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "As senhas não coincidem",
     path: ["confirmPassword"],
   });
+
+type PwnedStatus = "idle" | "checking" | "pwned" | "ok";
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
@@ -71,15 +71,46 @@ export default function RegisterPage() {
   });
 
   const password = watch("password");
+  const [pwnedStatus, setPwnedStatus] = useState<PwnedStatus>("idle");
 
-  const passwordRules = [
-    { label: "Mínimo 8 caracteres", met: password.length >= 8 },
-    { label: "Letra maiúscula", met: /[A-Z]/.test(password) },
-    { label: "Letra minúscula", met: /[a-z]/.test(password) },
-    { label: "Número", met: /[0-9]/.test(password) },
-  ];
+  // Debounced HIBP check: 500ms after last keystroke, ask the server whether
+  // this password has appeared in known breaches.
+  useEffect(() => {
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      setPwnedStatus("idle");
+      return;
+    }
+
+    setPwnedStatus("checking");
+    const controller = new AbortController();
+    const timeout = setTimeout(async () => {
+      try {
+        const result = await checkPasswordPwned(password);
+        if (!controller.signal.aborted) {
+          setPwnedStatus(result.pwned ? "pwned" : "ok");
+        }
+      } catch {
+        // Network failure mirrors backend fail-open behavior; don't block user.
+        if (!controller.signal.aborted) {
+          setPwnedStatus("idle");
+        }
+      }
+    }, 500);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [password]);
 
   async function onSubmit(data: RegisterFormData) {
+    if (pwnedStatus === "pwned") {
+      setError(
+        "Esta senha apareceu em um vazamento público de dados. Escolha uma senha diferente."
+      );
+      return;
+    }
+
     try {
       setError(null);
       await registerUser({
@@ -191,27 +222,59 @@ export default function RegisterPage() {
             <Input
               id="password"
               type="password"
-              placeholder="Mínimo 8 caracteres"
+              placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres`}
               autoComplete="new-password"
               {...register("password")}
             />
+            {errors.password && (
+              <p className="text-sm text-destructive">
+                {errors.password.message}
+              </p>
+            )}
             {password.length > 0 && (
               <ul className="space-y-1 mt-2">
-                {passwordRules.map((rule) => (
+                <li
+                  className={`flex items-center gap-1.5 text-xs ${
+                    password.length >= PASSWORD_MIN_LENGTH
+                      ? "text-green-600"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {password.length >= PASSWORD_MIN_LENGTH ? (
+                    <Check className="h-3 w-3" />
+                  ) : (
+                    <X className="h-3 w-3" />
+                  )}
+                  {`Mínimo ${PASSWORD_MIN_LENGTH} caracteres`}
+                </li>
+                {password.length >= PASSWORD_MIN_LENGTH && (
                   <li
-                    key={rule.label}
                     className={`flex items-center gap-1.5 text-xs ${
-                      rule.met ? "text-green-600" : "text-muted-foreground"
+                      pwnedStatus === "ok"
+                        ? "text-green-600"
+                        : pwnedStatus === "pwned"
+                        ? "text-destructive"
+                        : "text-muted-foreground"
                     }`}
                   >
-                    {rule.met ? (
+                    {pwnedStatus === "checking" ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : pwnedStatus === "ok" ? (
                       <Check className="h-3 w-3" />
+                    ) : pwnedStatus === "pwned" ? (
+                      <X className="h-3 w-3" />
                     ) : (
                       <X className="h-3 w-3" />
                     )}
-                    {rule.label}
+                    {pwnedStatus === "checking"
+                      ? "Verificando se a senha apareceu em vazamentos..."
+                      : pwnedStatus === "pwned"
+                      ? "Senha encontrada em vazamentos — escolha outra"
+                      : pwnedStatus === "ok"
+                      ? "Senha não encontrada em vazamentos públicos"
+                      : "Verificação de vazamentos indisponível"}
                   </li>
-                ))}
+                )}
               </ul>
             )}
           </div>

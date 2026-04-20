@@ -20,16 +20,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { passwordSchema } from "@/lib/validators/password";
 
 const loginSchema = z.object({
   email: z
     .string()
     .min(1, "E-mail é obrigatório")
     .email("E-mail inválido"),
-  password: z
-    .string()
-    .min(1, "Senha é obrigatória")
-    .min(6, "Senha deve ter pelo menos 6 caracteres"),
+  password: passwordSchema,
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
