@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -39,7 +39,37 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
+// useSearchParams requires a Suspense boundary for Next.js static
+// pre-rendering; wrap LoginForm so the page exports a stable shell.
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginSkeleton />}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginSkeleton() {
+  return (
+    <Card>
+      <CardHeader className="space-y-1 text-center">
+        <div className="flex justify-center mb-2">
+          <span className="text-2xl font-bold tracking-tight text-primary">
+            Manga
+          </span>
+        </div>
+        <CardTitle className="text-2xl">Entrar no Manga</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
