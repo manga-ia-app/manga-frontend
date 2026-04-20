@@ -9,8 +9,11 @@ concurrency:
   group: post-deploy-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: write  # required so auto-rollback can push a revert commit
+
 env:
-  # Phase 2 (armed): smoke failures trigger provider rollback via Vercel CLI.
+  # Phase 2 (armed): smoke failures trigger a git-revert-based rollback.
   ROLLBACK_ENABLED: "true"
   FRONTEND_URL: "https://manga-frontend-smoky.vercel.app"
 
@@ -20,12 +23,16 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so `git revert` can walk back
 
       - name: Wait for Vercel deploy to become reachable
         run: |
-          # Hitting /login directly: / redirects to /login (307) for unauthenticated
-          # users (middleware auth gate), so we use /login as the public canary.
-          max_wait=180
+          # Hitting /login directly: / redirects to /login (307) for anonymous
+          # users (middleware auth gate), so /login is our public canary.
+          # Vercel deploys are fast and self-healing, so we don't need the
+          # heavier provider-API polling that Koyeb/Render need.
+          max_wait=300
           interval=10
           elapsed=0
           until curl -fsS --max-time 10 "${FRONTEND_URL}/login" > /dev/null; do
@@ -39,14 +46,35 @@ jobs:
           done
           echo "deploy reachable after ${elapsed}s"
 
-      - name: Smoke — /login returns 200 and renders Manga title
+      - name: Warmup — /login consistently responsive
         run: |
-          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${FRONTEND_URL}/login")
+          # Require 3 consecutive 200s to avoid racing the end of a rollout.
+          success=0
+          for i in $(seq 1 10); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "${FRONTEND_URL}/login" || echo "000")
+            if [ "$status" = "200" ]; then
+              success=$((success + 1))
+              if [ $success -ge 3 ]; then
+                echo "warmup OK after $i attempt(s)"
+                exit 0
+              fi
+            else
+              success=0
+              echo "warmup attempt $i: $status"
+            fi
+            sleep 2
+          done
+          echo "::error::Warmup failed — /login not consistently 200"
+          exit 1
+
+      - name: Smoke — /login renders Manga title
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "${FRONTEND_URL}/login")
           if [ "$status" != "200" ]; then
             echo "::error::/login returned $status"
             exit 1
           fi
-          body=$(curl -fsS --max-time 20 "${FRONTEND_URL}/login")
+          body=$(curl -fsS --max-time 15 "${FRONTEND_URL}/login")
           if ! echo "$body" | grep -q '<title>Manga</title>'; then
             echo "::error::/login HTML missing <title>Manga</title> — layout render likely broken"
             exit 1
@@ -54,40 +82,41 @@ jobs:
 
       - name: Smoke — / redirects unauthenticated users to /login
         run: |
-          # Proves the middleware auth gate is alive. If / ever returns 200
-          # for an anonymous request, the middleware broke (real prod issue).
-          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${FRONTEND_URL}/")
+          # Proves the middleware auth gate is still alive. If / ever returns
+          # 200 for an anonymous request, the middleware broke (real issue).
+          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "${FRONTEND_URL}/")
           case "$status" in
             301|302|307|308) echo "redirect OK ($status)" ;;
             *) echo "::error::/ returned $status (expected 3xx redirect — middleware may be broken)"; exit 1 ;;
           esac
 
-      - name: Setup Node (for Vercel CLI)
-        if: failure() && env.ROLLBACK_ENABLED == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Vercel CLI
-        if: failure() && env.ROLLBACK_ENABLED == 'true'
-        run: npm i -g vercel@latest
-
-      - name: Rollback on failure
+      - name: Auto-rollback on failure (git revert + push)
         if: failure() && env.ROLLBACK_ENABLED == 'true'
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          # List production deployments for this project and pick the previous one.
-          # Output format varies across CLI versions — verify before enabling.
-          prev_url=$(vercel ls "$VERCEL_PROJECT_ID" --prod \
-            --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" \
-            | awk '/https:\/\// && NR>1 {print $1}' | sed -n '2p')
-          if [ -z "$prev_url" ]; then
-            echo "::error::No previous production deployment found"
+          if [[ "$HEAD_MSG" == revert\(auto-rollback\):* ]]; then
+            echo "::error::Auto-rollback already applied and smoke is still failing."
+            echo "::error::Manual intervention required — revert of revert won't fix this."
             exit 1
           fi
-          vercel rollback "$prev_url" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes
-          echo "rollback triggered: $prev_url"
+
+          git config user.name "manga-auto-rollback[bot]"
+          git config user.email "manga-auto-rollback@users.noreply.github.com"
+
+          ORIG_SUBJECT=$(git log -1 --format=%s HEAD)
+          ORIG_SHA=$(git rev-parse --short HEAD)
+
+          git revert HEAD --no-edit --mainline 1 2>/dev/null || git revert HEAD --no-edit
+
+          git commit --amend -m "revert(auto-rollback): smoke failed on ${ORIG_SHA}
+
+Original: ${ORIG_SUBJECT}
+
+Auto-reverted by post-deploy smoke test.
+Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          git push origin HEAD:main
+          echo "rolled back ${ORIG_SHA} — Vercel will redeploy the reverted code"
