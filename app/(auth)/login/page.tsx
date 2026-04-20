@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, LogIn } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { extractApiError } from "@/lib/api/error";
 import { passwordSchema } from "@/lib/validators/password";
+
+const REASON_BANNERS: Record<string, string> = {
+  session_expired: "Sua sessão expirou. Faça login novamente.",
+  password_reset: "Senha alterada. Faça login com a nova senha.",
+  email_confirmed: "E-mail confirmado com sucesso. Faça login.",
+};
 
 const loginSchema = z.object({
   email: z
@@ -34,8 +41,11 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const reason = searchParams.get("reason");
+  const banner = reason ? REASON_BANNERS[reason] : null;
 
   const {
     register,
@@ -53,13 +63,10 @@ export default function LoginPage() {
     try {
       setError(null);
       await login(data.email, data.password);
-      router.push("/dashboard");
+      const callbackUrl = searchParams.get("callbackUrl");
+      router.push(callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/dashboard");
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Ocorreu um erro ao fazer login. Tente novamente.");
-      }
+      setError(extractApiError(err, "Ocorreu um erro ao fazer login. Tente novamente."));
     }
   }
 
@@ -78,6 +85,11 @@ export default function LoginPage() {
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
+          {banner && !error && (
+            <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+              {banner}
+            </div>
+          )}
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               {error}

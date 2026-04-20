@@ -19,6 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { checkPasswordPwned, registerUser } from "@/lib/api/auth";
+import { extractApiError, parseApiError } from "@/lib/api/error";
 import {
   PASSWORD_MIN_LENGTH,
   passwordSchema,
@@ -57,6 +58,7 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
+    setError: setFieldError,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
@@ -121,11 +123,31 @@ export default function RegisterPage() {
       });
       setSuccess(true);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Ocorreu um erro ao criar a conta. Tente novamente.");
+      const apiError = parseApiError(err);
+      if (apiError?.type === "validation" && apiError.errors) {
+        const formFields = new Set([
+          "firstName",
+          "lastName",
+          "email",
+          "password",
+          "confirmPassword",
+        ]);
+        let mappedAny = false;
+        for (const [field, messages] of Object.entries(apiError.errors)) {
+          if (formFields.has(field) && messages.length > 0) {
+            setFieldError(field as keyof RegisterFormData, {
+              type: "server",
+              message: messages[0],
+            });
+            mappedAny = true;
+          }
+        }
+        if (!mappedAny) {
+          setError(Object.values(apiError.errors).flat().join(" "));
+        }
+        return;
       }
+      setError(extractApiError(err, "Ocorreu um erro ao criar a conta. Tente novamente."));
     }
   }
 
