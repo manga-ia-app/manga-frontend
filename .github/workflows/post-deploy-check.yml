@@ -76,8 +76,10 @@ jobs:
             exit 1
           fi
           body=$(curl -fsS --max-time 15 "${FRONTEND_URL}/login")
-          if ! echo "$body" | grep -q '<title>Manga</title>'; then
-            echo "::error::/login HTML missing <title>Manga</title> — layout render likely broken"
+          # VALIDATION-ONLY: assertion intentionally broken to force rollback.
+          # Real app unaffected. Revert this PR after the revert flow is validated.
+          if ! echo "$body" | grep -q '<title>RollbackRetriggerValidation-DoNotShip</title>'; then
+            echo "::error::/login HTML missing intentional validation marker — rollback should now fire AND re-trigger"
             exit 1
           fi
 
