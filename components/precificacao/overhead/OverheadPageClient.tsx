@@ -191,25 +191,27 @@ export function OverheadPageClient() {
 
   const handleAddCategory = useCallback(
     (name: string, isPersonnel: boolean) => {
-      const maxOrder = categories.reduce(
-        (max, c) => Math.max(max, c.displayOrder),
-        0
-      );
-      setCategories((prev) => [
-        ...prev,
-        {
-          id: null,
-          name,
-          isBase: false,
-          isPersonnel,
-          displayOrder: maxOrder + 1,
-          groups: [],
-          items: [],
-          syncedCollaborators: [],
-        },
-      ]);
+      setCategories((prev) => {
+        const maxOrder = prev.reduce(
+          (max, c) => Math.max(max, c.displayOrder),
+          0
+        );
+        return [
+          ...prev,
+          {
+            id: null,
+            name,
+            isBase: false,
+            isPersonnel,
+            displayOrder: maxOrder + 1,
+            groups: [],
+            items: [],
+            syncedCollaborators: [],
+          },
+        ];
+      });
     },
-    [categories]
+    []
   );
 
   const handleAddGroupToCategory = useCallback(

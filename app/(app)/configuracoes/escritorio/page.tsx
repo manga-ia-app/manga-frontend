@@ -78,10 +78,6 @@ function CurrencyInput({
     value > 0 ? value.toFixed(2) : ""
   );
 
-  useEffect(() => {
-    setDisplayValue(value > 0 ? value.toFixed(2) : "");
-  }, [value]);
-
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
