@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
-import { ServicoForm, type ServicoFormData } from "../servico-form";
+import { ServicoForm, type ServicoSubmitPayload } from "../servico-form";
 import { createServico } from "@/lib/api/cadastros";
 import { showToast } from "@/lib/utils/toast";
 
@@ -15,7 +15,7 @@ export default function NovoServicoPage() {
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
-    mutationFn: (data: ServicoFormData) => createServico(data),
+    mutationFn: (data: ServicoSubmitPayload) => createServico(data),
     onSuccess: () => {
       showToast("success", { title: "Servico cadastrado com sucesso!" });
       queryClient.invalidateQueries({ queryKey: ["servicos"] });

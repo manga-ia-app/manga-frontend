@@ -43,9 +43,14 @@ const servicoSchema = z.object({
 
 export type ServicoFormData = z.infer<typeof servicoSchema>;
 
+/** Payload emitted by the form after mask→number conversion on defaultPrice. */
+export type ServicoSubmitPayload = Omit<ServicoFormData, "defaultPrice"> & {
+  defaultPrice: number;
+};
+
 interface ServicoFormProps {
   defaultValues?: Partial<Servico>;
-  onSubmit: (data: ServicoFormData) => void;
+  onSubmit: (data: ServicoSubmitPayload) => void;
   isSubmitting?: boolean;
 }
 
@@ -77,10 +82,11 @@ export function ServicoForm({
   const unit = watch("unit");
 
   function handleFormSubmit(data: ServicoFormData) {
-    onSubmit({
+    const payload: ServicoSubmitPayload = {
       ...data,
       defaultPrice: data.defaultPrice ? unmaskCurrency(data.defaultPrice) : 0,
-    } as any);
+    };
+    onSubmit(payload);
   }
 
   return (

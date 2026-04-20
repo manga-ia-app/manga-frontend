@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { extractApiError } from "@/lib/api/error";
 import {
   createGrupoColaborador,
   updateGrupoColaborador,
@@ -44,8 +45,8 @@ export function GrupoDialog({ open, onOpenChange, grupo }: GrupoDialogProps) {
       queryClient.invalidateQueries({ queryKey: ["grupos-colaboradores"] });
       onOpenChange(false);
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || "Erro ao criar grupo.");
+    onError: (err) => {
+      toast.error(extractApiError(err, "Erro ao criar grupo."));
     },
   });
 
@@ -57,8 +58,8 @@ export function GrupoDialog({ open, onOpenChange, grupo }: GrupoDialogProps) {
       queryClient.invalidateQueries({ queryKey: ["grupos-colaboradores"] });
       onOpenChange(false);
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || "Erro ao atualizar grupo.");
+    onError: (err) => {
+      toast.error(extractApiError(err, "Erro ao atualizar grupo."));
     },
   });
 
