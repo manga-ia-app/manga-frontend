@@ -22,12 +22,10 @@ import {
 import { useAuth } from "@/lib/hooks/use-auth";
 import { extractApiError } from "@/lib/api/error";
 import { passwordSchema } from "@/lib/validators/password";
-
-const REASON_BANNERS: Record<string, string> = {
-  session_expired: "Sua sessão expirou. Faça login novamente.",
-  password_reset: "Senha alterada. Faça login com a nova senha.",
-  email_confirmed: "E-mail confirmado com sucesso. Faça login.",
-};
+import {
+  AUTH_GENERIC_ERRORS,
+  LOGIN_REASON_BANNERS,
+} from "@/lib/constants/auth-messages";
 
 const loginSchema = z.object({
   email: z
@@ -75,7 +73,7 @@ function LoginForm() {
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const reason = searchParams.get("reason");
-  const banner = reason ? REASON_BANNERS[reason] : null;
+  const banner = reason ? LOGIN_REASON_BANNERS[reason] : null;
 
   const {
     register,
@@ -96,7 +94,7 @@ function LoginForm() {
       const callbackUrl = searchParams.get("callbackUrl");
       router.push(callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/dashboard");
     } catch (err: unknown) {
-      setError(extractApiError(err, "Ocorreu um erro ao fazer login. Tente novamente."));
+      setError(extractApiError(err, AUTH_GENERIC_ERRORS.login));
     }
   }
 
@@ -172,15 +170,23 @@ function LoginForm() {
             )}
           </Button>
 
-          <p className="text-center text-sm text-muted-foreground">
-            Ainda não tem uma conta?{" "}
+          <div className="flex flex-col items-center gap-2 text-sm">
             <Link
-              href="/register"
-              className="font-medium text-primary underline-offset-4 hover:underline"
+              href="/forgot-password"
+              className="text-muted-foreground underline-offset-4 hover:underline"
             >
-              Criar conta
+              Esqueci minha senha
             </Link>
-          </p>
+            <p className="text-muted-foreground">
+              Ainda não tem uma conta?{" "}
+              <Link
+                href="/register"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Criar conta
+              </Link>
+            </p>
+          </div>
         </CardFooter>
       </form>
     </Card>

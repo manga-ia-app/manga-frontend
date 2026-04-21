@@ -165,6 +165,21 @@ export async function confirmEmail(token: string): Promise<void> {
   await authClient.post("/auth/confirm-email", { token });
 }
 
+export async function requestPasswordReset(email: string): Promise<void> {
+  await authClient.post("/auth/forgot-password", { email });
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string
+): Promise<void> {
+  await authClient.post("/auth/reset-password", { token, newPassword });
+}
+
+export async function resendConfirmation(email: string): Promise<void> {
+  await authClient.post("/auth/resend-confirmation", { email });
+}
+
 export interface CheckPasswordPwnedResponse {
   pwned: boolean;
 }
