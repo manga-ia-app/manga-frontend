@@ -41,7 +41,7 @@ npm start
 Hosted on Vercel free tier. Connect the repo in Vercel dashboard; it auto-detects Next.js and deploys on push to `main`.
 
 Env vars required in Vercel:
-- `NEXT_PUBLIC_API_URL` — Koyeb API URL
-- `NEXT_PUBLIC_AI_WS_URL` — Render AI WebSocket URL
+- `NEXT_PUBLIC_API_URL` — Koyeb API URL (e.g. `https://reduced-etta-manga-ai-app-10a73dd1.koyeb.app/api`)
+- `NEXT_PUBLIC_AI_URL` — Render AI service URL (e.g. `https://manga-ai-service-d6n9.onrender.com`). Serves both HTTP (health, `/ai/chat`, etc.) and WebSocket — the WS client transforms `http[s]://` → `ws[s]://` at runtime.
 
 See `.env.example` for full list.

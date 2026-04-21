@@ -3,7 +3,17 @@
 import { useCallback, useRef, useState } from "react";
 import { getTokenFromCookie, isTokenExpired } from "../api/auth";
 
-const AI_SERVICE_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL || "ws://localhost:5200";
+// Uses the same NEXT_PUBLIC_AI_URL as the HTTP client (lib/api/ai.ts).
+// Transforms http[s]:// → ws[s]:// because the browser's WebSocket
+// constructor rejects the http scheme.
+function resolveWsUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_AI_URL || "http://localhost:5200";
+  if (raw.startsWith("https://")) return "wss://" + raw.slice("https://".length);
+  if (raw.startsWith("http://")) return "ws://" + raw.slice("http://".length);
+  return raw; // already ws:// or wss://
+}
+
+const AI_SERVICE_URL = resolveWsUrl();
 
 // ── Event payload types (same interface as SignalR for compatibility) ──
 

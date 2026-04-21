@@ -26,4 +26,4 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:5100/api
-          NEXT_PUBLIC_AI_WS_URL: ws://localhost:5200/ws
+          NEXT_PUBLIC_AI_URL: http://localhost:5200
