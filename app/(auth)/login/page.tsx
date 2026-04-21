@@ -22,12 +22,10 @@ import {
 import { useAuth } from "@/lib/hooks/use-auth";
 import { extractApiError } from "@/lib/api/error";
 import { passwordSchema } from "@/lib/validators/password";
-
-const REASON_BANNERS: Record<string, string> = {
-  session_expired: "Sua sessão expirou. Faça login novamente.",
-  password_reset: "Senha alterada. Faça login com a nova senha.",
-  email_confirmed: "E-mail confirmado com sucesso. Faça login.",
-};
+import {
+  AUTH_GENERIC_ERRORS,
+  LOGIN_REASON_BANNERS,
+} from "@/lib/constants/auth-messages";
 
 const loginSchema = z.object({
   email: z
@@ -75,7 +73,7 @@ function LoginForm() {
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const reason = searchParams.get("reason");
-  const banner = reason ? REASON_BANNERS[reason] : null;
+  const banner = reason ? LOGIN_REASON_BANNERS[reason] : null;
 
   const {
     register,
@@ -96,7 +94,7 @@ function LoginForm() {
       const callbackUrl = searchParams.get("callbackUrl");
       router.push(callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/dashboard");
     } catch (err: unknown) {
-      setError(extractApiError(err, "Ocorreu um erro ao fazer login. Tente novamente."));
+      setError(extractApiError(err, AUTH_GENERIC_ERRORS.login));
     }
   }
 

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/card";
 import { checkPasswordPwned, registerUser } from "@/lib/api/auth";
 import { extractApiError, parseApiError } from "@/lib/api/error";
+import { AUTH_GENERIC_ERRORS } from "@/lib/constants/auth-messages";
 import {
   PASSWORD_MIN_LENGTH,
   passwordSchema,
@@ -147,7 +148,7 @@ export default function RegisterPage() {
         }
         return;
       }
-      setError(extractApiError(err, "Ocorreu um erro ao criar a conta. Tente novamente."));
+      setError(extractApiError(err, AUTH_GENERIC_ERRORS.register));
     }
   }
 
