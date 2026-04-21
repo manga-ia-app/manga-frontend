@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const publicPaths = ["/login", "/register", "/confirm-email", "/proposta"];
+const publicPaths = [
+  "/login",
+  "/register",
+  "/confirm-email",
+  "/forgot-password",
+  "/reset-password",
+  "/proposta",
+];
 const TOKEN_COOKIE = "manga_token";
 const REFRESH_TOKEN_COOKIE = "manga_refresh_token";
 
