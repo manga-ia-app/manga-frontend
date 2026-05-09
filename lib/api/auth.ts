@@ -199,10 +199,28 @@ export async function checkPasswordPwned(
   return response.data;
 }
 
-export function logout(): void {
+/**
+ * Logout server-side: chama POST /auth/logout para revogar o refresh token e
+ * blacklistar o jti atual; em seguida limpa cookies e redireciona.
+ * Falhas na chamada não bloqueiam o redirect — o access token eventualmente
+ * expira e o refresh token só existe no DB (já limpo se o backend respondeu).
+ */
+export async function logout(): Promise<void> {
+  const token = getTokenFromCookie();
+  try {
+    if (token) {
+      await authClient.post(
+        "/auth/logout",
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    }
+  } catch {
+    // best-effort: servidor pode estar indisponível, mas o logout client-side prossegue
+  }
   removeCookie(TOKEN_COOKIE);
   removeCookie(REFRESH_TOKEN_COOKIE);
   if (typeof window !== "undefined") {
-    window.location.href = "/login";
+    window.location.href = "/login?reason=logged_out";
   }
 }
